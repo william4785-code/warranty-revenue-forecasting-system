@@ -2,6 +2,64 @@ required_monthly_columns <- function() {
   c("date", "branch_id", "revenue")
 }
 
+required_application_columns <- function() {
+  c("application_id", "branch_id", "application_date", "amount")
+}
+
+assert_application_schema <- function(data) {
+  missing_columns <- setdiff(required_application_columns(), names(data))
+  if (length(missing_columns) > 0L) {
+    stop(
+      "Missing required application columns: ",
+      paste(missing_columns, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  if (!inherits(data$application_date, "Date")) {
+    stop("`application_date` must be a Date column.", call. = FALSE)
+  }
+  if (!is.numeric(data$amount)) {
+    stop("`amount` must be numeric.", call. = FALSE)
+  }
+  if (anyNA(data[required_application_columns()])) {
+    stop("Required application columns contain missing values.", call. = FALSE)
+  }
+  if (anyDuplicated(data$application_id)) {
+    stop("Duplicate application_id values detected.", call. = FALSE)
+  }
+  if (any(data$amount < 0)) {
+    stop("Application amounts must be non-negative.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+assert_prediction_chronology <- function(data) {
+  required <- c("origin", "date", "h", "max_train_date")
+  missing_columns <- setdiff(required, names(data))
+  if (length(missing_columns) > 0L) {
+    stop(
+      "Chronology audit is missing: ",
+      paste(missing_columns, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  bad <- data |>
+    dplyr::mutate(
+      observed_h =
+        (lubridate::year(.data$date) - lubridate::year(.data$origin)) * 12L +
+        lubridate::month(.data$date) - lubridate::month(.data$origin)
+    ) |>
+    dplyr::filter(
+      .data$max_train_date > .data$origin |
+        .data$origin >= .data$date |
+        .data$observed_h != .data$h
+    )
+  if (nrow(bad) > 0L) {
+    stop("Prediction chronology validation failed.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 assert_monthly_schema <- function(data) {
   missing_columns <- setdiff(required_monthly_columns(), names(data))
   if (length(missing_columns) > 0L) {

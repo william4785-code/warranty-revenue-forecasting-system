@@ -1,0 +1,3 @@
+phase,evaluation_policy,development_origin_n,test_or_outer_origin_n,xgb_rmse_change_pct,xgb_rmse_change_without_stress_month_pct,hybrid_rmse_change_pct,hybrid_rmse_change_without_stress_month_pct,improved_horizon_n,improved_nowcast_cutoff_n,improved_nowcast_cutoff_without_stress_month_n,materially_degraded_branch_n,short_history_fallback,decision
+Phase 4B,dynamic nested reselection,NA,12,-2.6944,-8.9716,-0.3489,-2.6364,4,5,5,0,unchanged,POLICY_PROMOTION_CANDIDATE_ONLY
+Phase 4B.1,fixed chronological holdout,6,6,9.6010,4.5786,3.6383,1.6345,2,0,1,2,unchanged,RETAIN_V2_3

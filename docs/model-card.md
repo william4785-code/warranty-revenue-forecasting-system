@@ -1,119 +1,101 @@
-# Model Card: Warranty Revenue Forecasting System Portfolio V2.2
+# Model Card: Warranty Revenue Forecasting System V2.3
 
-## Model overview
+## Status
 
-Portfolio V2.2 forecasts monthly warranty revenue by anonymized service branch
-for horizons one through six. It combines three component models:
+- Monthly Champion: Portfolio V2.3 Hybrid
+- Intramonth layer: Application-progress Nowcast for open-month `h = 1`
+- Dynamic XGBoost retuning: experimental policy only
+- Fixed XGBoost Challenger: rejected
+- Promotion decision: `RETAIN_V2_3`
 
-- ARIMA;
-- ETS;
-- recursive XGBoost.
+## Intended Use
 
-An adaptive Hybrid combines component forecasts using inverse-RMSE weights.
-During backtesting, weights for a forecast origin are estimated only from
-earlier origins.
+The system supports planning and analyst review by forecasting six monthly
+horizons for multiple operating units. During an open month it can update the
+first horizon using cumulative application activity observed through validated
+calendar-day cutoffs.
 
-## Intended use
-
-- monthly planning and target-risk discussion;
-- branch-level forecast comparison;
-- model research and governance demonstration;
-- scenario support when combined with business judgment.
-
-## Out-of-scope use
-
-- accounting recognition or audited financial reporting;
-- claim-level approval or customer decisions;
-- automatic staffing or budget commitments without review;
-- use on daily data without redesigning the validation framework;
-- use in a new business domain without re-estimation.
+It is not an accounting ledger, automated revenue commitment, or substitute for
+operational judgment.
 
 ## Inputs
 
-Required public schema:
+Monthly layer:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `date` | Date | First day of a completed calendar month |
-| `branch_id` | Character | Anonymized branch identifier |
-| `revenue` | Numeric | Monthly target variable |
+- `date`
+- `branch_id`
+- `revenue`
 
-Optional activity fields in the synthetic generator are not currently included
-in the production feature routes.
+Optional application-progress layer:
 
-## Features
+- `application_id`
+- `branch_id`
+- `application_date`
+- `amount`
 
-The public model uses only forecast-time-valid fields:
+All public examples are synthetic. Public branch IDs have no mapping to real
+locations.
 
-- calendar month, quarter, and year;
-- lagged revenue at 1, 2, 3, 6, and 12 months;
-- rolling means using prior months only;
-- lag-derived trend and growth;
-- rolling volatility using prior months only;
-- sine and cosine month encodings.
+## Model Components
 
-Same-month target growth and future activity counts are blocked.
+- ARIMA for linear autocorrelation and differencing
+- ETS for level, trend, and seasonality
+- Recursive XGBoost for nonlinear lag and calendar effects
+- Hybrid using inverse walk-forward RMSE weights
+- Application-progress Nowcast using historical cumulative-share curves
 
-## Training and validation
+## Validation
 
-- expanding walk-forward evaluation;
-- horizons `h = 1,...,6`;
-- common branch-origin-date-horizon keys across all component models;
-- prior-origin Hybrid weights;
-- residual-based Hybrid interval scale;
-- explicit short-history fallback.
+- Expanding multi-horizon walk-forward forecasts
+- Identical Champion/Challenger evaluation keys
+- Training cutoff not later than forecast origin
+- Hybrid weights calculated from earlier origins only
+- Nowcast curves and blend weights calculated from prior completed months only
+- Current incomplete month excluded from monthly training
+- Branch degradation guardrail
+- Stress-month sensitivity analysis
+- Frozen-candidate chronological holdout
 
-## Metrics
+## Fallbacks
 
-Primary:
+- Before the first validated cutoff, retain the Hybrid baseline.
+- If application history is insufficient, set the curve weight to zero.
+- If a branch lacks adequate h=1 backtest evidence, retain the baseline.
+- Public branch B05 always demonstrates the short-history fallback.
+- If branch-level interval evidence is sparse, use pooled cutoff error; otherwise
+  retain the baseline interval.
 
-- RMSE.
+## Challenger Decision
 
-Supporting:
+Dynamic nested tuning improved aggregate XGBoost performance by 2.69%, but the
+effect belonged to a policy that repeatedly selected parameters. A frozen
+candidate chosen on six development origins worsened XGBoost RMSE by 9.60% and
+Hybrid RMSE by 3.64% on six later origins. It failed horizon breadth, Nowcast,
+and branch guardrail gates. V2.3 was retained.
 
-- MAE;
-- MAPE;
-- WAPE;
-- Bias;
-- sample count.
+The negative result is part of the model record. It must not be omitted from a
+deployment or portfolio summary.
 
-Metrics are never compared across models unless the models share the same
-evaluation keys.
+## Known Limitations
 
-## Known limitations
+- Monthly samples are small relative to the XGBoost parameter space.
+- Recursive forecasts can accumulate error at longer horizons.
+- Structural shifts may invalidate progress curves and model weights.
+- Application timing can change independently of final monthly revenue.
+- Residual intervals are empirical approximations rather than fully calibrated
+  probabilistic forecasts.
+- The fixed holdout contained six origins, sufficient to reject this promotion
+  but not to establish a universal conclusion about all parameter sets.
 
-- Revenue may contain large, irregular cases that cannot be inferred from
-  historical totals.
-- MAPE is unstable when actual revenue is near zero.
-- Recursive XGBoost compounds its own uncertainty at longer horizons.
-- Inverse-RMSE weighting does not guarantee the optimal portfolio.
-- A 95% residual interval is not automatically a calibrated 95% probability
-  statement.
-- Synthetic demo accuracy cannot be interpreted as business performance.
+## Monitoring
 
-## Fallback behavior
+Track RMSE, MAE, WAPE, Bias, interval coverage, fallback frequency, curve
+weight, progress-curve drift, missing keys, branch concentration, and material
+degradation relative to the Champion.
 
-The public policy demonstrates:
+## Governance
 
-- conservative core features for a guardrail branch;
-- a reduced minimum complete-row threshold for a short-history branch;
-- branch-level weight fallback when branch-horizon evidence is insufficient;
-- equal-weight cold start when no prior error history exists.
-
-Fallback sources are retained in outputs for auditability.
-
-## Human oversight
-
-Users should review:
-
-- unusual revenue spikes;
-- data completion status;
-- interval width;
-- bias and drift;
-- changes in the best model by branch and horizon;
-- whether operational or policy changes invalidate historical relationships.
-
-## Privacy
-
-All repository examples use synthetic B01-B05 identifiers. No mapping to real
-branches or company records exists in the public project.
+Promotion requires improvements at the XGBoost, Hybrid, and Nowcast layers,
+broad horizon support, no material branch degradation, stress-period
+sensitivity, and an unchanged short-history fallback. A failed downstream gate
+retains the current Champion even when an upstream metric improves.

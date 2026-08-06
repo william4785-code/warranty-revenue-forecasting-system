@@ -1,0 +1,23 @@
+phase,gate,passed
+Phase 4B,full_evidence_run,TRUE
+Phase 4B,control_reconciles_frozen_v2_3,TRUE
+Phase 4B,xgb_overall_improves,TRUE
+Phase 4B,xgb_without_stress_month_improves,TRUE
+Phase 4B,at_least_four_horizons_improve,TRUE
+Phase 4B,hybrid_overall_improves,TRUE
+Phase 4B,hybrid_without_stress_month_improves,TRUE
+Phase 4B,all_nowcast_cutoffs_improve,TRUE
+Phase 4B,all_nowcast_cutoffs_improve_without_stress_month,TRUE
+Phase 4B,no_branch_material_degradation,TRUE
+Phase 4B,short_history_fallback_unchanged,TRUE
+Phase 4B.1,chronological_fixed_holdout,TRUE
+Phase 4B.1,control_reconciles_frozen_v2_3,TRUE
+Phase 4B.1,xgb_overall_improves,FALSE
+Phase 4B.1,xgb_without_stress_month_improves,FALSE
+Phase 4B.1,at_least_four_horizons_improve,FALSE
+Phase 4B.1,hybrid_overall_improves,FALSE
+Phase 4B.1,hybrid_without_stress_month_improves,FALSE
+Phase 4B.1,all_nowcast_cutoffs_improve,FALSE
+Phase 4B.1,all_nowcast_cutoffs_improve_without_stress_month,FALSE
+Phase 4B.1,no_branch_material_degradation,FALSE
+Phase 4B.1,short_history_fallback_unchanged,TRUE

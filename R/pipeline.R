@@ -7,6 +7,8 @@ source_portfolio_modules <- function(root = ".") {
     "models.R",
     "backtesting.R",
     "hybrid.R",
+    "nowcast.R",
+    "challenger_validation.R",
     "io.R"
   )
   invisible(lapply(
@@ -21,7 +23,8 @@ run_forecasting_pipeline <- function(
     monthly_data,
     config = portfolio_config(),
     n_origins = 6L,
-    as_of_date = Sys.Date()) {
+    as_of_date = Sys.Date(),
+    application_data = NULL) {
   monthly_data <- exclude_open_month(monthly_data, as_of_date)
   assert_monthly_schema(monthly_data)
 
@@ -63,7 +66,7 @@ run_forecasting_pipeline <- function(
     config$expected_models
   )
 
-  list(
+  result <- list(
     backtest = backtest,
     component_metrics = evaluate_backtest(backtest),
     hybrid_backtest = hybrid_backtest,
@@ -71,4 +74,19 @@ run_forecasting_pipeline <- function(
     component_forecasts = component_forecasts,
     hybrid_forecast = hybrid_forecast
   )
+
+  if (!is.null(application_data)) {
+    result$nowcast <- build_application_progress_nowcast(
+      applications = application_data,
+      forecast_h1 = hybrid_forecast,
+      hybrid_backtest = hybrid_backtest,
+      as_of_date = as_of_date,
+      cutoff_days = config$nowcast_cutoffs,
+      fallback_branches = config$nowcast_fallback_branches,
+      minimum_blend_training_rows = config$nowcast_min_training_rows,
+      branch_curve_shrinkage = config$nowcast_curve_shrinkage
+    )
+  }
+
+  result
 }

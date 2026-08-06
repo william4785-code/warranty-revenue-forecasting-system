@@ -14,8 +14,8 @@ on.exit({
 
 Sys.setenv(
   REPORT_OUTPUT_DIR = "docs/assets",
-  DEMO_NROUNDS = "25",
-  DEMO_ORIGINS = "3",
+  DEMO_NROUNDS = "12",
+  DEMO_ORIGINS = "2",
   DEMO_HORIZON = "6",
   DEMO_WRITE_EXCEL = "false"
 )

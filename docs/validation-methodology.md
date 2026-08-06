@@ -1,5 +1,9 @@
 # Validation Methodology
 
+> V2.3 extends the monthly design with an application-progress Nowcast and a
+> fixed-Challenger chronological holdout. See
+> [Leakage Controls](leakage-controls.md) for the complete boundary rules.
+
 ## Objective
 
 Estimate how each model would have performed if it had been run at historical
@@ -105,10 +109,26 @@ Recommended evidence:
 - branch-level deterioration guardrail;
 - performance by horizon.
 
+## Application-progress Nowcast
+
+Historical application amounts are truncated independently at calendar days
+5, 10, 15, 20, and 25. For each target month, cumulative-share priors and the
+baseline/curve blend weight use completed months strictly before that target.
+The monthly actual reconstructed from application records must reconcile with
+the Hybrid h=1 backtest before evaluation proceeds.
+
+## Champion / Challenger promotion
+
+A Challenger cannot be promoted from XGBoost RMSE alone. Gates also require
+broad horizon improvement, lower leakage-safe Hybrid RMSE, lower Nowcast RMSE
+at every validated cutoff, no established branch degradation beyond 5%, stress
+period sensitivity, and an unchanged short-history fallback. The Phase 4B.1
+fixed candidate failed these gates, so V2.3 remains the Champion.
+
 ## Remaining robustness work
 
 - empirical 80% and 95% interval coverage;
 - model and feature drift monitoring;
 - nested feature and hyperparameter selection;
-- operational-pipeline nowcasting;
+- longer prospective Nowcast monitoring;
 - longer short-history branch evaluation.

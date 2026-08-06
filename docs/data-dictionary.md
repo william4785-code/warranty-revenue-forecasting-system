@@ -21,6 +21,30 @@ The combination of `date` and `branch_id` must be unique.
 These fields demonstrate a possible public schema but are not used in the
 current production feature routes.
 
+## Application-level input
+
+| Column | Type | Description |
+|---|---|---|
+| `application_id` | character | Synthetic or irreversibly anonymized unique record key |
+| `branch_id` | character | Public operating-unit alias |
+| `application_date` | Date | Date the application entered the progress curve |
+| `amount` | numeric | Non-negative synthetic or sanitized amount |
+
+## Nowcast output
+
+| Column | Description |
+|---|---|
+| `cutoff_day` | Latest validated cutoff not later than the analysis date |
+| `cumulative_amount` | Amount observed through the cutoff |
+| `baseline_pred` | Original Hybrid h=1 forecast |
+| `curve_pred` | Progress-curve estimate |
+| `curve_weight` | Prior-history-selected curve contribution |
+| `pred` | Final open-month estimate |
+| `nowcast_status` | Blend or explicit fallback reason |
+
+The public repository does not contain real application IDs, actual revenue,
+internal category fields, or branch mappings.
+
 ## Backtest output
 
 | Column | Definition |

@@ -2,176 +2,198 @@
 
 [![R validation](https://github.com/william4785-code/warranty-revenue-forecasting-system/actions/workflows/validation.yml/badge.svg)](https://github.com/william4785-code/warranty-revenue-forecasting-system/actions/workflows/validation.yml)
 
-An AI-assisted data science and model-engineering project for forecasting
-monthly warranty revenue across multiple service branches.
+Portfolio V2.3 is a governed R forecasting system for monthly warranty revenue
+and intramonth application-progress nowcasting. It combines ARIMA, ETS, and
+recursive XGBoost through leakage-safe walk-forward validation, adaptive Hybrid
+weights, prediction intervals, and an explicit short-history fallback.
 
-Portfolio V2.2 combines ARIMA, ETS, and recursive XGBoost with time-aware
-feature routing, walk-forward validation, leakage controls, independently
-estimated Hybrid weights, prediction intervals, and explicit short-history
-fallbacks.
+The project also records a negative Challenger result: dynamic nested XGBoost
+tuning looked promising, but the selected fixed parameter set failed to
+generalize on an untouched chronological holdout. The production Champion was
+therefore retained.
 
-> This is a sanitized portfolio implementation. All branch IDs, data,
-> database names, and demonstration outputs are synthetic. There is no mapping
-> between B01-B05 and any real service location.
+> This is a sanitized portfolio implementation. All records, amounts, branch
+> IDs, dates used by demos, database names, and outputs are synthetic. Public
+> aliases B01-B05 do not map to real operating units.
 
 ![Synthetic forecast demonstration](docs/assets/synthetic_forecast.png)
 
-## Why this project is difficult
+## What V2.3 Adds
 
-Monthly warranty revenue is noisy, branch-specific, and affected by changing
-claim volume, seasonality, operational timing, and occasional large cases.
-A model can appear accurate while still being unusable if it:
+- Application-progress Nowcast at calendar-day cutoffs 5, 10, 15, 20, and 25
+- Latest validated cutoff selection based on an explicit analysis date
+- Branch progress curves shrunk toward a pooled prior
+- Prior-month-only tuning of the baseline/curve blend weight
+- Baseline-only behavior before day 5 and for unsupported branches
+- A public B05 short-history fallback that demonstrates conservative routing
+- Chronology audits for model training, Hybrid weights, and nowcast history
+- Champion/Challenger promotion gates with an explicit retain decision
+- Fully synthetic monthly and application-level data generation
 
-- uses a feature that is unavailable at forecast time;
-- evaluates different models on different months;
-- tunes features on the same period later reported as a test;
-- silently drops a model when Hybrid weights fail to join;
-- treats a new branch as if it had years of history.
+V2.3 does not replace the six-month Hybrid forecast. It updates only the open
+month's `h = 1` estimate when enough application-progress evidence exists.
 
-The primary goal of V2.2 is therefore not merely to fit a complex model. It is
-to make every forecast traceable, time-valid, and safe to compare.
+![Synthetic application-progress Nowcast](docs/assets/synthetic_nowcast.png)
 
-## What changed in Portfolio V2.2
-
-- Removed same-month year-over-year growth features that leaked the target.
-- Added a leakage blacklist and forecast-time availability rules.
-- Excluded the current incomplete month before feature engineering.
-- Standardized XGBoost model naming to `XGB`.
-- Assigned horizons within each branch and model.
-- Added common-key checks requiring ARIMA, ETS, and XGB for every evaluation
-  row.
-- Replaced silent `na.rm = TRUE` model dropping with explicit validation.
-- Added horizon-aware XGBoost feature routes.
-- Added a short-history fallback route.
-- Estimated Hybrid backtest weights using only prior forecast origins.
-- Estimated Hybrid interval scale from historical Hybrid residuals, preserving
-  cross-model error correlation.
-- Split the original monolithic script into testable modules.
-
-See [CHANGELOG.md](CHANGELOG.md) for the version history.
-
-## Forecasting architecture
+## Architecture
 
 ```mermaid
-flowchart LR
-    A["Monthly input<br/>date, branch_id, revenue"] --> B["Schema and open-month checks"]
-    B --> C["Leakage-safe feature engineering"]
-    C --> D["Expanding walk-forward backtest"]
+flowchart TD
+    A["Synthetic or sanitized monthly input"] --> B["Schema and open-month checks"]
+    B --> C["Leakage-safe lag and calendar features"]
+    C --> D["Expanding multi-horizon walk-forward validation"]
     D --> E1["ARIMA"]
     D --> E2["ETS"]
-    D --> E3["Recursive XGBoost<br/>horizon-aware routes"]
+    D --> E3["Recursive XGBoost"]
     E1 --> F["Common-key validation"]
     E2 --> F
     E3 --> F
     F --> G["Prior-origin inverse-RMSE weights"]
-    G --> H["Hybrid forecast"]
-    H --> I["Residual-based 95% interval"]
-    I --> J["Excel and chart outputs"]
+    G --> H["Six-month Hybrid forecast + residual interval"]
+    I["Synthetic or sanitized application progress"] --> J["Cutoff curves: day 5/10/15/20/25"]
+    H --> K["Open-month h=1 baseline"]
+    J --> L["Prior-month-only blend selection"]
+    K --> L
+    L --> M["Application-progress Nowcast"]
+    M --> N["Fallback if early month, insufficient evidence, or B05"]
 ```
 
-## Model roles
+## Forecasting Models
 
-| Model | Role | Main risk |
+| Model | Role | Main control |
 |---|---|---|
-| ARIMA | Linear autocorrelation and differencing patterns | Misses nonlinear interactions |
-| ETS | Level, trend, and seasonal smoothing | Can lag irregular structural shifts |
-| XGBoost | Nonlinear lag, trend, volatility, and calendar interactions | Leakage and recursive error accumulation |
-| Hybrid | Diversifies model-specific errors | Optimistic results if weights use the evaluation origin |
+| ARIMA | Linear autocorrelation and differencing | Expanding-window evaluation |
+| ETS | Level, trend, and seasonality | Same forecast keys as other models |
+| XGBoost | Nonlinear lag and calendar effects | Forecast-time feature allowlist |
+| Hybrid | Diversifies component errors | Weights use prior origins only |
+| Nowcast | Blends h=1 baseline with observed application progress | Curves and weights use prior completed months |
 
-Simple models remain valid Champions when they outperform XGBoost or Hybrid on
-the same walk-forward samples.
+Simple models remain valid Champions when a more complex learner fails the same
+future-style evaluation.
 
-## Validation design
+## Walk-Forward Validation
 
-The system uses expanding-window walk-forward evaluation for horizons
-`h = 1,...,6`.
+The monthly system evaluates horizons `h = 1,...,6`. At each forecast origin:
 
-For each forecast origin:
+1. Training data ends at the origin.
+2. Every target date is later than the origin.
+3. ARIMA, ETS, and XGBoost predict identical branch/date/horizon keys.
+4. Missing or duplicated component predictions fail validation.
+5. Hybrid weights use forecast origins strictly earlier than the evaluated row.
+6. XGBoost recursively feeds predictions forward without using future actuals.
 
-1. Only earlier months are used for training.
-2. ARIMA, ETS, and XGBoost predict the same future branch-month-horizon keys.
-3. Common-key validation rejects missing, duplicated, or inconsistent rows.
-4. Hybrid weights are estimated from origins strictly earlier than the current
-   evaluation origin.
-5. RMSE is the primary ranking metric; MAE, MAPE, WAPE, Bias, and sample size
-   are retained as supporting evidence.
+The Nowcast applies the same rule at a finer grain. A target month's progress
+curve and blend weight can use only completed months before that target month.
 
-Full methodology:
-[docs/validation-methodology.md](docs/validation-methodology.md).
+See [Validation Methodology](docs/validation-methodology.md) and
+[Leakage Controls](docs/leakage-controls.md).
 
-## Horizon-aware features
+## Hybrid and Short-History Fallback
 
-The public routing policy is illustrative and uses synthetic branch IDs:
+Hybrid component weights are based on inverse walk-forward RMSE. Branch/horizon
+weights are preferred when enough evidence exists; otherwise the system falls
+back to branch-level evidence. Residual intervals are estimated from historical
+Hybrid errors rather than assuming that component errors are independent.
 
-| Route | Use | Feature family |
-|---|---|---|
-| `recursive_core` | Most branches, h=1-4 | Calendar, recursive revenue lags, rolling values, trend, growth, volatility |
-| `safe_compact` | Most branches, h=5-6 | Core plus safe lag-6 and lag-12 signals |
-| `recursive_core_guardrail` | Synthetic B02 | Conservative core route across all horizons |
-| `recursive_core_short_history` | Synthetic B05 | Explicit reduced-history threshold |
+Public alias `B05` represents the short-history fallback pattern. It keeps the
+conservative recursive-core route and remains on the original Hybrid `h = 1`
+forecast instead of receiving an unvalidated application-progress adjustment.
 
-No route contains same-month target growth or future operational counts.
-See [docs/feature-availability.md](docs/feature-availability.md).
+## Phase 4B / 4B.1 Challenger Evidence
 
-## Quick start: fully synthetic demo
+### Phase 4B: Dynamic Nested Policy
+
+The leakage-safe dynamic policy reselected one shared XGBoost parameter row at
+each outer forecast origin. On common future-style keys it produced:
+
+- XGBoost RMSE change: **-2.69%**
+- XGBoost RMSE change excluding a stress month: **-8.97%**
+- Leakage-safe Hybrid RMSE change: **-0.35%**
+- Four of six horizons improved
+- All five Nowcast cutoffs improved
+- No established branch crossed the 5% degradation guardrail
+- Short-history fallback remained unchanged
+
+This was a policy-level promotion candidate, not evidence that one static
+parameter row was deployable. Twelve outer folds selected seven different
+candidates, and the all-history candidate was not an outer-fold winner.
+
+### Phase 4B.1: Fixed Chronological Holdout
+
+One candidate was selected on six earlier origins, frozen, and evaluated on six
+untouched later origins. It failed the downstream promotion gates:
+
+- XGBoost RMSE worsened **9.60%**
+- Excluding the stress month, XGBoost still worsened **4.58%**
+- Hybrid RMSE worsened **3.64%**
+- Only two of six horizons improved
+- Zero of five Nowcast cutoffs improved overall
+- Two established branches breached the material-degradation guardrail
+- The short-history fallback remained unchanged
+
+Decision: **RETAIN V2.3**.
+
+The result rejects this fixed Challenger; it does not claim that all future
+XGBoost tuning is impossible. Full interpretation is in
+[Challenger Validation](docs/challenger-validation.md). Sanitized aggregate
+evidence is available under [`results/`](results/).
+
+## Quick Start
 
 Requirements:
 
 - R 4.4 or later
-- packages listed below
-
-Recreate the recorded package environment:
+- packages captured in `renv.lock`
 
 ```r
 install.packages("renv")
 renv::restore()
 ```
 
-Or install the required packages directly:
-
-```r
-install.packages(c(
-  "dplyr", "tidyr", "lubridate", "zoo", "xgboost", "forecast",
-  "tibble", "ggplot2", "scales", "writexl", "testthat",
-  "DBI", "RMariaDB"
-))
-```
-
-Run from the repository root:
+Run the complete synthetic V2.3 forecast and Nowcast:
 
 ```r
 source("scripts/run_demo.R", encoding = "UTF-8")
 ```
 
-The demo:
+The demo generates:
 
-- generates monthly synthetic data for B01-B05;
-- performs multi-horizon walk-forward evaluation;
-- creates prior-origin Hybrid weights;
-- produces six-month forecasts and residual-based intervals;
-- writes an Excel workbook and PNG chart under `outputs/demo/`.
+- synthetic monthly revenue for B01-B05;
+- synthetic application-level progress records;
+- six-month component and Hybrid forecasts;
+- open-month application-progress Nowcast;
+- baseline-only B05 fallback;
+- Excel and PNG outputs under `outputs/demo/`.
 
-The default demo uses fewer XGBoost rounds than the production reference so it
-finishes quickly. Override with environment variables:
+Run the smaller synthetic fixed-Challenger experiment:
 
-```text
-DEMO_NROUNDS=80
-DEMO_ORIGINS=6
-DEMO_HORIZON=6
-REPORT_OUTPUT_DIR=outputs/demo
+```r
+source("scripts/run_challenger_demo.R", encoding = "UTF-8")
 ```
 
-## Run with your own sanitized data
+Synthetic outcomes demonstrate the validation mechanics and are not presented
+as production accuracy.
 
-CSV schema:
+## Run with Sanitized Data
+
+Monthly CSV:
 
 ```text
 date,branch_id,revenue
 2025-01-01,B01,1250000
 ```
 
+Optional application-progress CSV:
+
+```text
+application_id,branch_id,application_date,amount
+SYN-B01-202501-0001,B01,2025-01-03,24000
+```
+
 ```text
 INPUT_CSV=path/to/monthly_input.csv
+INPUT_APPLICATION_CSV=path/to/application_input.csv
+ANALYSIS_AS_OF_DATE=2026-01-20
 REPORT_OUTPUT_DIR=outputs
 ```
 
@@ -179,11 +201,10 @@ REPORT_OUTPUT_DIR=outputs
 source("scripts/run_forecast.R", encoding = "UTF-8")
 ```
 
-MariaDB configuration remains supported through `.env.example`. The configured
-monthly table must expose the public columns `date`, `branch_id`, and
-`revenue`.
+MariaDB remains available for the generic monthly schema through
+`.env.example`. Database publishing is not part of this repository.
 
-## Project structure
+## Project Structure
 
 ```text
 .
@@ -194,6 +215,8 @@ monthly table must expose the public columns `date`, `branch_id`, and
 │   ├── models.R
 │   ├── backtesting.R
 │   ├── hybrid.R
+│   ├── nowcast.R
+│   ├── challenger_validation.R
 │   ├── metrics.R
 │   ├── io.R
 │   ├── pipeline.R
@@ -201,26 +224,22 @@ monthly table must expose the public columns `date`, `branch_id`, and
 ├── scripts/
 │   ├── run_forecast.R
 │   ├── run_demo.R
-│   └── render_demo_assets.R
+│   └── run_challenger_demo.R
 ├── tests/testthat/
+├── results/
+│   ├── phase4b-public-summary.csv
+│   └── promotion-gates-public.csv
 ├── docs/
 │   ├── model-card.md
 │   ├── validation-methodology.md
 │   ├── feature-availability.md
-│   ├── data-dictionary.md
-│   └── warranty-forecasting-technical-handbook.pdf
+│   ├── leakage-controls.md
+│   ├── challenger-validation.md
+│   └── data-dictionary.md
 ├── .github/workflows/validation.yml
 ├── CHANGELOG.md
 └── renv.lock
 ```
-
-## Documentation
-
-- [Model Card](docs/model-card.md)
-- [Validation Methodology](docs/validation-methodology.md)
-- [Feature Availability and Leakage Controls](docs/feature-availability.md)
-- [Public Data Dictionary](docs/data-dictionary.md)
-- [Technical Review Handbook](docs/warranty-forecasting-technical-handbook.pdf)
 
 ## Tests
 
@@ -228,40 +247,28 @@ monthly table must expose the public columns `date`, `branch_id`, and
 source("tests/testthat.R", encoding = "UTF-8")
 ```
 
-Tests cover:
+Tests cover schema validation, open-month exclusion, feature availability,
+common evaluation keys, prior-origin Hybrid weights, application-progress
+fallbacks, chronological splits, promotion-gate failure, and the synthetic
+end-to-end forecast pipeline.
 
-- schema and duplicate-key validation;
-- exclusion of the current incomplete month;
-- leakage-free feature routes;
-- horizon routing and short-history thresholds;
-- common-key model completeness;
-- prior-origin Hybrid weights;
-- an end-to-end synthetic smoke test.
+## Responsible Use
 
-## Current limitations
+- V2.3 remains the Champion.
+- Dynamic retuning remains an experimental policy.
+- The evaluated fixed Challenger is rejected.
+- Nowcast adjusts only the open-month h=1 forecast.
+- Confidence intervals are empirical approximations and require monitoring.
+- Synthetic outputs must not be interpreted as business performance.
 
-- Synthetic results do not represent production performance.
-- Recursive XGBoost can accumulate error at longer horizons.
-- Residual-based intervals are an approximation and should be monitored for
-  empirical coverage.
-- The public routing policy demonstrates governance mechanics; it is not a
-  universal policy for other businesses.
-- Hyperparameter search is intentionally excluded from the production path
-  until nested validation is applied to the final leakage-safe feature set.
+## Privacy
 
-## Data privacy
-
-Do not commit:
-
-- real warranty records or financial forecasts;
-- internal branch mappings;
-- credentials or database endpoints;
-- generated company reports;
-- private feature names or operational rules.
-
-Use synthetic or irreversibly anonymized inputs for demonstrations.
+Do not commit real claim records, revenue values, branch mappings, credentials,
+database endpoints, operational feature names, model snapshots, checkpoints,
+row-level predictions, or internal reports. Public evidence is limited to
+synthetic data and irreversibly aggregated percentage changes.
 
 ## License
 
-No open-source license has been selected yet. The repository is publicly
-viewable, but reuse rights remain reserved until a license is explicitly added.
+No open-source license has been selected. The repository is publicly viewable,
+but reuse rights remain reserved until a license is explicitly added.

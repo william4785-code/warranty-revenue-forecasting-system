@@ -1,16 +1,26 @@
-# Portfolio V2.2 configuration -----------------------------------------------
+# Portfolio V2.3 configuration -----------------------------------------------
 
 portfolio_config <- function(
     horizon = 6L,
     nrounds = 80L,
     min_train_rows = 24L,
     short_history_rows = 9L,
+    nowcast_cutoffs = c(5L, 10L, 15L, 20L, 25L),
+    nowcast_fallback_branches = "B05",
+    nowcast_min_training_rows = 8L,
+    nowcast_curve_shrinkage = 6,
+    branch_degradation_guardrail = 0.05,
     seed = 20260717L) {
   list(
     horizon = as.integer(horizon),
     nrounds = as.integer(nrounds),
     min_train_rows = as.integer(min_train_rows),
     short_history_rows = as.integer(short_history_rows),
+    nowcast_cutoffs = sort(unique(as.integer(nowcast_cutoffs))),
+    nowcast_fallback_branches = as.character(nowcast_fallback_branches),
+    nowcast_min_training_rows = as.integer(nowcast_min_training_rows),
+    nowcast_curve_shrinkage = as.numeric(nowcast_curve_shrinkage),
+    branch_degradation_guardrail = as.numeric(branch_degradation_guardrail),
     seed = as.integer(seed),
     expected_models = c("ARIMA", "ETS", "XGB"),
     xgb_params = list(

@@ -1,5 +1,9 @@
 # Feature Availability and Leakage Controls
 
+V2.3 keeps the V2.2 monthly allowlist and adds a separate intramonth signal
+family. Application-progress values are never inserted into the six-month
+recursive XGBoost feature matrix.
+
 ## Core rule
 
 A feature is allowed only if its value would be known when the forecast is
@@ -53,6 +57,19 @@ date < floor_date(as_of_date, "month")
 
 The open month is excluded because partial revenue would otherwise contaminate
 the target, lags, rolling features, and backtests.
+
+## Nowcast-only signals
+
+| Signal | Availability rule |
+|---|---|
+| cumulative application amount | Observed only through selected cutoff |
+| cumulative application count | Observed only through selected cutoff |
+| branch cumulative-share prior | Completed months before target only |
+| pooled cumulative-share prior | Completed months before target only |
+| curve blend weight | Earlier completed target months only |
+
+These fields can adjust open-month `h = 1`; they are unavailable to longer
+horizons and cannot modify historical monthly features.
 
 ## Route governance
 

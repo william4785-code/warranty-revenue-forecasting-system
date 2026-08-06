@@ -29,6 +29,8 @@ tmp/
 # Public portfolio documentation is intentionally versioned.
 !docs/*.pdf
 !docs/assets/*.png
+!results/phase4b-public-summary.csv
+!results/promotion-gates-public.csv
 
 # Model artifacts
 *.model

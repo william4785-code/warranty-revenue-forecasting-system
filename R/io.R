@@ -11,6 +11,19 @@ load_monthly_csv <- function(path) {
   data
 }
 
+load_application_csv <- function(path) {
+  if (!file.exists(path)) {
+    stop("Application CSV does not exist: ", path, call. = FALSE)
+  }
+  data <- utils::read.csv(path, stringsAsFactors = FALSE)
+  data$application_date <- as.Date(data$application_date)
+  data$application_id <- as.character(data$application_id)
+  data$branch_id <- as.character(data$branch_id)
+  data$amount <- as.numeric(data$amount)
+  assert_application_schema(data)
+  data
+}
+
 load_monthly_mariadb <- function() {
   required <- c(
     "MARIADB_USER", "MARIADB_PASSWORD",
@@ -58,4 +71,10 @@ load_portfolio_input <- function() {
     return(load_monthly_csv(input_csv))
   }
   load_monthly_mariadb()
+}
+
+load_optional_application_input <- function() {
+  path <- Sys.getenv("INPUT_APPLICATION_CSV")
+  if (!nzchar(path)) return(NULL)
+  load_application_csv(path)
 }

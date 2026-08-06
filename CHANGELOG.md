@@ -1,5 +1,18 @@
 # Changelog
 
+## Portfolio V2.3 - Application-progress Nowcast and model governance
+
+- Added an open-month h=1 Application-progress Nowcast at validated calendar
+  cutoffs 5/10/15/20/25.
+- Added prior-month-only progress curves and blend-weight selection.
+- Added pooled-curve shrinkage, baseline-only early-month behavior, and a B05
+  short-history fallback.
+- Added chronological audit helpers and fixed-Challenger promotion gates.
+- Recorded Phase 4B as a dynamic-policy promotion candidate.
+- Recorded Phase 4B.1 as a failed fixed candidate and retained V2.3.
+- Added application-level synthetic data, reproducible demos, and tests.
+- Published relative metrics only; no actual revenue or row-level predictions.
+
 ## Portfolio V2.2 - 2026-07
 
 ### Correctness

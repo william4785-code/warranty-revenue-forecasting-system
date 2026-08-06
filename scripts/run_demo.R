@@ -22,11 +22,20 @@ demo_config <- portfolio_config(
 )
 
 demo_data <- generate_synthetic_warranty_data()
+demo_open_month <- max(demo_data$date) %m+%
+  lubridate::period(1L, units = "month")
+demo_as_of_date <- demo_open_month + lubridate::days(19L)
+demo_applications <- generate_synthetic_applications(
+  demo_data,
+  open_month = demo_open_month,
+  as_of_day = lubridate::day(demo_as_of_date)
+)
 demo_results <- run_forecasting_pipeline(
   demo_data,
   config = demo_config,
   n_origins = as.integer(Sys.getenv("DEMO_ORIGINS", "4")),
-  as_of_date = as.Date("2030-01-01")
+  as_of_date = demo_as_of_date,
+  application_data = demo_applications
 )
 
 output_dir <- Sys.getenv("REPORT_OUTPUT_DIR", "outputs/demo")
@@ -36,7 +45,10 @@ if (tolower(Sys.getenv("DEMO_WRITE_EXCEL", "true")) == "true") {
   writexl::write_xlsx(
     list(
       synthetic_input = demo_data,
+      synthetic_applications = demo_applications,
       hybrid_forecast = demo_results$hybrid_forecast,
+      current_nowcast = demo_results$nowcast$current,
+      nowcast_metrics = demo_results$nowcast$metrics,
       component_metrics = demo_results$component_metrics,
       hybrid_metrics = demo_results$hybrid_metrics
     ),
@@ -86,6 +98,50 @@ ggsave(
   dpi = 160
 )
 
-cat("\nPortfolio V2.2 synthetic demo completed.\n")
+nowcast_plot_data <- demo_results$nowcast$current |>
+  dplyr::select(
+    "branch_id", "baseline_pred", "curve_pred", "pred", "nowcast_status"
+  ) |>
+  tidyr::pivot_longer(
+    cols = c("baseline_pred", "curve_pred", "pred"),
+    names_to = "estimate",
+    values_to = "value"
+  ) |>
+  dplyr::mutate(
+    estimate = dplyr::recode(
+      .data$estimate,
+      baseline_pred = "Hybrid baseline",
+      curve_pred = "Progress curve",
+      pred = "Final Nowcast"
+    )
+  )
+
+nowcast_plot <- ggplot(
+  nowcast_plot_data,
+  aes(x = .data$branch_id, y = .data$value, color = .data$estimate)
+) +
+  geom_point(size = 2.8, position = position_dodge(width = 0.45)) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ",")) +
+  labs(
+    title = "Synthetic application-progress Nowcast",
+    subtitle = "Day-20 estimate with explicit B05 baseline fallback",
+    x = "Synthetic branch",
+    y = "Synthetic amount",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "top")
+
+ggsave(
+  file.path(output_dir, "synthetic_nowcast.png"),
+  nowcast_plot,
+  width = 10,
+  height = 5.8,
+  dpi = 160
+)
+
+cat("\nPortfolio V2.3 synthetic demo completed.\n")
 cat("Output directory:", normalizePath(output_dir), "\n")
 print(demo_results$hybrid_forecast, n = 12)
+cat("\nApplication-progress Nowcast:\n")
+print(demo_results$nowcast$current, n = Inf)

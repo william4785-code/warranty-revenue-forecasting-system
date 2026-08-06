@@ -68,10 +68,13 @@ walk_forward_backtest <- function(
           dplyr::rename(actual, actual = "revenue"),
           by = "date"
         ) |>
-        dplyr::mutate(origin = origin_date) |>
+        dplyr::mutate(
+          origin = origin_date,
+          max_train_date = origin_date
+        ) |>
         dplyr::select(
           "origin", "date", "branch_id",
-          "h", "model", "actual", "pred"
+          "h", "model", "actual", "pred", "max_train_date"
         )
 
       result_index <- result_index + 1L
@@ -81,5 +84,6 @@ walk_forward_backtest <- function(
 
   output <- dplyr::bind_rows(all_results)
   assert_backtest_common_keys(output, config$expected_models)
+  assert_prediction_chronology(output)
   output
 }

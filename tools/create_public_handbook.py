@@ -175,7 +175,7 @@ def header_footer(canvas, doc):
     canvas.drawString(
         MARGIN_X,
         PAGE_H - 8.2 * mm,
-        "Warranty Revenue Forecasting System - Portfolio V2.2",
+        "Warranty Revenue Forecasting System - Portfolio V2.3",
     )
     canvas.drawString(
         MARGIN_X,
@@ -196,7 +196,7 @@ class Handbook(BaseDocTemplate):
             topMargin=MARGIN_TOP,
             bottomMargin=MARGIN_BOTTOM,
             title="Warranty Revenue Forecasting System - Technical Handbook",
-            author="William Yang",
+            author="Portfolio Project",
             subject="Forecasting metrics, validation, leakage controls, and model governance",
         )
         frame = Frame(
@@ -257,7 +257,7 @@ def story():
     )
     flow.append(
         p(
-            "Portfolio V2.2",
+            "Portfolio V2.3",
             ParagraphStyle(
                 "Cover2",
                 parent=H1,
@@ -282,7 +282,7 @@ def story():
     flow.append(
         p(
             "Metrics, leakage controls, horizon-aware features, walk-forward "
-            "validation, Hybrid weighting, uncertainty, and governance",
+            "validation, Hybrid weighting, application-progress Nowcast, and governance",
             ParagraphStyle(
                 "Subtitle",
                 parent=BODY,
@@ -300,8 +300,8 @@ def story():
             [
                 ("Purpose", "Portfolio review, learning, and technical handoff"),
                 ("Data", "Synthetic branch IDs B01-B05 only"),
-                ("Models", "ARIMA, ETS, recursive XGBoost, adaptive Hybrid"),
-                ("Version", "Portfolio V2.2 - July 2026"),
+                ("Models", "ARIMA, ETS, recursive XGBoost, Hybrid, Nowcast"),
+                ("Version", "Portfolio V2.3 - August 2026"),
             ],
             [38 * mm, 100 * mm],
             8,
@@ -327,7 +327,7 @@ def story():
     flow.append(p("1  System summary", H1))
     flow.append(
         p(
-            "Portfolio V2.2 forecasts monthly warranty revenue by branch for "
+            "Portfolio V2.3 forecasts monthly warranty revenue by branch for "
             "horizons one through six. The technical emphasis is not algorithm "
             "novelty alone: it is time-valid evaluation, explicit failure "
             "conditions, and traceable model decisions."
@@ -415,7 +415,7 @@ def story():
     flow.append(p("3  Leakage and feature availability", H1))
     flow.append(
         table(
-            ["Leakage type", "Example", "V2.2 control"],
+            ["Leakage type", "Example", "V2.3 control"],
             [
                 ("Target", "Same-month YoY growth algebraically contains revenue", "Explicit blocked-feature list"),
                 ("Temporal", "Rolling calculation sees future test rows", "Lag before rolling; fold-local training"),
@@ -604,8 +604,43 @@ def story():
     )
     flow.append(PageBreak())
 
+    # Nowcast
+    flow.append(p("7  Application-progress Nowcast", H1))
+    flow.append(
+        p(
+            "V2.3 preserves the six-month Hybrid forecast and updates only "
+            "the open month's h=1 estimate. Progress is evaluated at calendar "
+            "days 5, 10, 15, 20, and 25."
+        )
+    )
+    flow.append(
+        table(
+            ["Stage", "Leakage-safe rule"],
+            [
+                ("Observed progress", "Applications are truncated at the selected cutoff"),
+                ("Branch curve", "Cumulative-share history uses earlier completed months"),
+                ("Pooled prior", "Sparse branch curves shrink toward cross-branch history"),
+                ("Blend", "Curve weight is selected from prior target months only"),
+                ("Fallback", "Before day 5, sparse evidence, and B05 keep the Hybrid baseline"),
+                ("Interval", "Branch-cutoff residual scale with pooled fallback"),
+            ],
+            [45 * mm, 130 * mm],
+            7.8,
+        )
+    )
+    flow.append(
+        callout(
+            "Scope boundary",
+            "Application progress never enters the six-month recursive XGBoost "
+            "feature matrix. It is an auditable h=1 overlay with explicit status "
+            "and fallback fields.",
+            "good",
+        )
+    )
+    flow.append(PageBreak())
+
     # Demo image
-    flow.append(p("7  Synthetic demonstration", H1))
+    flow.append(p("8  Synthetic demonstration", H1))
     flow.append(
         p(
             "The repository includes a reproducible generator for five "
@@ -624,15 +659,58 @@ def story():
         callout(
             "Reproducibility",
             "Run scripts/run_demo.R from the repository root. The demo "
-            "generates input, backtests all models, builds prior-origin Hybrid "
-            "weights, forecasts six months, and writes Excel and PNG outputs.",
+            "generates monthly and application-level input, backtests all "
+            "models, builds prior-origin Hybrid weights, forecasts six months, "
+            "and produces the open-month Nowcast.",
             "info",
         )
     )
     flow.append(PageBreak())
 
+    # Challenger
+    flow.append(p("9  Challenger validation", H1))
+    flow.append(
+        p(
+            "Phase 4B found improvement for a dynamic nested policy, but the "
+            "evidence did not establish that one fixed parameter row would "
+            "generalize. Phase 4B.1 froze a candidate before a later holdout."
+        )
+    )
+    flow.append(
+        table(
+            ["Evidence", "Dynamic policy", "Fixed holdout"],
+            [
+                ("XGBoost RMSE change", "-2.69%", "+9.60%"),
+                ("Hybrid RMSE change", "-0.35%", "+3.64%"),
+                ("Improved horizons", "4 of 6", "2 of 6"),
+                ("Improved Nowcast cutoffs", "5 of 5", "0 of 5"),
+                ("Material branch degradation", "None", "Two branches"),
+                ("Decision", "Policy candidate only", "RETAIN V2.3"),
+            ],
+            [65 * mm, 55 * mm, 55 * mm],
+            7.8,
+        )
+    )
+    flow.append(
+        callout(
+            "Negative evidence is evidence",
+            "The fixed Challenger was not promoted. Upstream improvement cannot "
+            "override failed horizon, Hybrid, Nowcast, or branch guardrail gates.",
+            "warn",
+        )
+    )
+    flow.append(p("Audit summary", H2))
+    for item in [
+        "456 dynamic chronology-audit rows passed.",
+        "Five fixed-holdout chronology checks passed.",
+        "Frozen control reconstruction matched 228/228 and 84/84 common keys.",
+        "Only relative changes are public; amounts and row-level predictions remain private.",
+    ]:
+        flow.append(bullet(item))
+    flow.append(PageBreak())
+
     # Governance
-    flow.append(p("8  Governance checklist", H1))
+    flow.append(p("10  Governance checklist", H1))
     flow.append(
         table(
             ["Layer", "Required evidence"],
@@ -654,7 +732,7 @@ def story():
     flow.append(p("Champion, Challenger, Fallback", H2))
     for item in [
         "Champion: the current evidence-backed production choice.",
-        "Challenger: promising, but still under independent evaluation.",
+        "Challenger: must pass fixed future-style downstream evaluation.",
         "Fallback: conservative behavior when history or model components are incomplete.",
     ]:
         flow.append(bullet(item))
@@ -663,8 +741,8 @@ def story():
         "Empirical interval calibration.",
         "Feature and residual drift monitoring.",
         "Nested feature and hyperparameter selection.",
-        "Operational pipeline nowcasting with genuinely available current-period signals.",
-        "Formal promotion and rollback thresholds.",
+        "Longer prospective Nowcast monitoring and curve-drift detection.",
+        "Additional fixed-candidate evaluations under new regimes.",
     ]:
         flow.append(bullet(item))
     flow.append(
@@ -679,7 +757,7 @@ def story():
     flow.append(Spacer(1, 7 * mm))
     flow.append(
         p(
-            "Source: Warranty Revenue Forecasting System Portfolio V2.2. "
+            "Source: Warranty Revenue Forecasting System Portfolio V2.3. "
             "All examples are synthetic and anonymized.",
             ParagraphStyle(
                 "EndNote",
