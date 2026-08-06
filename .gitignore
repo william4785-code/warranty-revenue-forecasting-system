@@ -14,6 +14,7 @@ raw_data/
 private/
 outputs/
 reports/
+tmp/
 
 # Generated artifacts
 *.csv
@@ -25,6 +26,12 @@ reports/
 *.rds
 *.RDS
 
+# Public portfolio documentation is intentionally versioned.
+!docs/*.pdf
+!docs/assets/*.png
+!results/phase4b-public-summary.csv
+!results/promotion-gates-public.csv
+
 # Model artifacts
 *.model
 *.ubj
@@ -34,3 +41,7 @@ reports/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Python build artifacts
+__pycache__/
+*.pyc
