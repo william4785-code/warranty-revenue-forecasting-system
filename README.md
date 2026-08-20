@@ -8,6 +8,33 @@ management.
 > credentials, internal database names, branch identifiers, and generated
 > reports are not included.
 
+## Companion Analytics Engineering Layer
+
+This forecasting repository is paired with
+[warranty-analytics-engineering-layer](https://github.com/william4785-code/warranty-analytics-engineering-layer),
+a synthetic-only dbt Core + DuckDB project that demonstrates the governed data
+layer around warranty forecasting.
+
+```text
+dbt + DuckDB analytics engineering layer
+  sources -> tested grains -> point-in-time features -> prediction contract
+                                                        |
+                                                        v
+R forecasting system
+  model fitting -> walk-forward validation -> forecasts -> promotion decisions
+                                                        |
+                                                        v
+dbt monitoring
+  common-key actuals -> RMSE / MAE / WAPE / bias -> branch guardrails
+```
+
+The companion repository owns transformation, data-quality tests,
+documentation, lineage, feature contracts, and prediction monitoring. This R
+repository owns model fitting, chronological validation, statistical
+diagnostics, and forecasting decisions. The repositories remain separate so
+that the analytics layer cannot silently redefine model labels, validation
+rules, or production decisions.
+
 ## Key Features
 
 - Loads warranty claim detail and monthly summaries from MariaDB
